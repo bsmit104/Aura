@@ -5,7 +5,7 @@ import '../models/comment.dart';
 class CommentWidget extends StatelessWidget {
   final Comment comment;
   final Function(String) onReply;
-  final Function(String) onLike;
+  final Function(String, bool) onReact;
   final bool isReply;
   final int depth;
 
@@ -13,7 +13,7 @@ class CommentWidget extends StatelessWidget {
     super.key,
     required this.comment,
     required this.onReply,
-    required this.onLike,
+    required this.onReact,
     this.isReply = false,
     this.depth = 0,
   });
@@ -21,7 +21,8 @@ class CommentWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final isLiked = currentUserId != null && comment.likes.contains(currentUserId);
+    final hasSparkled = currentUserId != null && comment.sparkles.contains(currentUserId);
+    final hasPooped = currentUserId != null && comment.poops.contains(currentUserId);
 
     return Container(
       margin: EdgeInsets.only(
@@ -80,6 +81,34 @@ class CommentWidget extends StatelessWidget {
                     ),
                   ],
                 ),
+                const Spacer(),
+                // Aura Score
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: comment.aura > 0 
+                        ? const Color(0xFF4ECDC4)
+                        : comment.aura < 0 
+                            ? const Color(0xFFFF6B6B)
+                            : const Color(0xFF4A5EBD),
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(2, 2),
+                        blurRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    'Aura: ${comment.aura}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -98,25 +127,117 @@ class CommentWidget extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                IconButton(
-                  onPressed: () => onLike(comment.id),
-                  icon: Icon(
-                    isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: isLiked ? const Color(0xFFFF6B6B) : Colors.black,
-                    size: 20,
+                // Sparkle button
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasSparkled ? const Color(0xFF4ECDC4) : Colors.white,
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(2, 2),
+                        blurRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: GestureDetector(
+                    onTap: () => onReact(comment.id, true),
+                    child: Row(
+                      children: [
+                        Icon(
+                          hasSparkled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                          color: hasSparkled ? Colors.white : Colors.black,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          comment.sparkles.length.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: hasSparkled ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                Text(
-                  comment.likes.length.toString(),
-                  style: const TextStyle(fontSize: 12),
+
+                const SizedBox(width: 8),
+
+                // Poop button
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasPooped ? const Color(0xFFFF6B6B) : Colors.white,
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(2, 2),
+                        blurRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: GestureDetector(
+                    onTap: () => onReact(comment.id, false),
+                    child: Row(
+                      children: [
+                        Icon(
+                          hasPooped ? Icons.sentiment_very_dissatisfied : Icons.sentiment_very_dissatisfied_outlined,
+                          color: hasPooped ? Colors.white : Colors.black,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          comment.poops.length.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: hasPooped ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 16),
-                IconButton(
-                  onPressed: () => onReply(comment.id),
-                  icon: const Icon(
-                    Icons.reply,
-                    color: Colors.black,
-                    size: 20,
+
+                const SizedBox(width: 8),
+
+                // Reply button
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(2, 2),
+                        blurRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: GestureDetector(
+                    onTap: () => onReply(comment.id),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.reply,
+                          color: Color(0xFF4A5EBD),
+                          size: 16,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Reply',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

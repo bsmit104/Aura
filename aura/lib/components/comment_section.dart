@@ -41,7 +41,8 @@ class _CommentSectionState extends State<CommentSection> {
       content: content,
       timestamp: DateTime.now(),
       parentId: _replyingToCommentId,
-      likes: [],
+      sparkles: [],
+      poops: [],
     );
 
     await _commentsCollection.add(comment.toMap());
@@ -52,20 +53,46 @@ class _CommentSectionState extends State<CommentSection> {
     });
   }
 
-  Future<void> _likeComment(String commentId, List<String> likes) async {
+  Future<void> _reactToComment(String commentId, bool isSparkle) async {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) return;
 
-    final updatedLikes = List<String>.from(likes);
-    if (updatedLikes.contains(currentUserId)) {
-      updatedLikes.remove(currentUserId);
-    } else {
-      updatedLikes.add(currentUserId);
+    final commentRef = _commentsCollection.doc(commentId);
+    final commentDoc = await commentRef.get();
+    
+    if (!commentDoc.exists) return;
+    
+    final comment = Comment.fromMap({
+      ...commentDoc.data() as Map<String, dynamic>,
+      'id': commentDoc.id,
+    });
+
+    final batch = FirebaseFirestore.instance.batch();
+
+    // Remove any existing reaction
+    if (comment.sparkles.contains(currentUserId)) {
+      batch.update(commentRef, {
+        'sparkles': FieldValue.arrayRemove([currentUserId])
+      });
+    }
+    if (comment.poops.contains(currentUserId)) {
+      batch.update(commentRef, {
+        'poops': FieldValue.arrayRemove([currentUserId])
+      });
     }
 
-    await _commentsCollection.doc(commentId).update({
-      'likes': updatedLikes,
-    });
+    // Add new reaction if it's different from the removed one
+    if (isSparkle && !comment.sparkles.contains(currentUserId)) {
+      batch.update(commentRef, {
+        'sparkles': FieldValue.arrayUnion([currentUserId])
+      });
+    } else if (!isSparkle && !comment.poops.contains(currentUserId)) {
+      batch.update(commentRef, {
+        'poops': FieldValue.arrayUnion([currentUserId])
+      });
+    }
+
+    await batch.commit();
   }
 
   @override
@@ -163,7 +190,10 @@ class _CommentSectionState extends State<CommentSection> {
             }
 
             final comments = snapshot.data!.docs
-                .map((doc) => Comment.fromMap(doc.data() as Map<String, dynamic>))
+                .map((doc) => Comment.fromMap({
+                      ...doc.data() as Map<String, dynamic>,
+                      'id': doc.id,
+                    }))
                 .toList();
 
             return ListView.builder(
@@ -181,9 +211,7 @@ class _CommentSectionState extends State<CommentSection> {
                           _replyingToCommentId = commentId;
                         });
                       },
-                      onLike: (commentId) {
-                        _likeComment(commentId, comment.likes);
-                      },
+                      onReact: _reactToComment,
                     ),
                     // Replies
                     StreamBuilder<QuerySnapshot>(
@@ -198,7 +226,10 @@ class _CommentSectionState extends State<CommentSection> {
                         }
 
                         final replies = snapshot.data!.docs
-                            .map((doc) => Comment.fromMap(doc.data() as Map<String, dynamic>))
+                            .map((doc) => Comment.fromMap({
+                                  ...doc.data() as Map<String, dynamic>,
+                                  'id': doc.id,
+                                }))
                             .toList();
 
                         return ListView.builder(
@@ -215,9 +246,7 @@ class _CommentSectionState extends State<CommentSection> {
                                   _replyingToCommentId = commentId;
                                 });
                               },
-                              onLike: (commentId) {
-                                _likeComment(commentId, reply.likes);
-                              },
+                              onReact: _reactToComment,
                             );
                           },
                         );
