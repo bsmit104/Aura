@@ -10,6 +10,8 @@ class UserModel {
   final int postCount;
   final int followerCount;
   final int followingCount;
+  final List<String> followers;
+  final List<String> following;
 
   UserModel({
     required this.id,
@@ -21,6 +23,8 @@ class UserModel {
     this.postCount = 0,
     this.followerCount = 0,
     this.followingCount = 0,
+    this.followers = const [],
+    this.following = const [],
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -35,6 +39,8 @@ class UserModel {
       postCount: data['postCount'] as int? ?? 0,
       followerCount: data['followerCount'] as int? ?? 0,
       followingCount: data['followingCount'] as int? ?? 0,
+      followers: List<String>.from(data['followers'] ?? []),
+      following: List<String>.from(data['following'] ?? []),
     );
   }
 
@@ -48,6 +54,8 @@ class UserModel {
       'postCount': postCount,
       'followerCount': followerCount,
       'followingCount': followingCount,
+      'followers': followers,
+      'following': following,
     };
   }
 } 

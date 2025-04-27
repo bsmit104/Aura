@@ -38,6 +38,21 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     try {
+      // Check if username already exists
+      final username = usernameController.text.trim();
+      final usernameQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get();
+
+      if (usernameQuery.docs.isNotEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+          displayMessageToUser("Username already taken", context);
+        }
+        return;
+      }
+
       // Create user with Firebase Authentication
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
@@ -47,8 +62,6 @@ class _RegisterPageState extends State<RegisterPage> {
       
       // Update display name and create user document
       if (userCredential.user != null) {
-        final username = usernameController.text.trim();
-        
         // Update Firebase Auth displayName
         await userCredential.user!.updateDisplayName(username);
         

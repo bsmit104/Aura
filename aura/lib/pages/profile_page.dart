@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:aura/models/user.dart';
 import 'package:aura/services/user_service.dart';
+import 'package:aura/pages/followers_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -131,18 +132,44 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildStatCard(
-                            title: 'Following',
-                            value: _userModel?.followingCount.toString() ?? '0',
-                            color: const Color(0xFF4ECDC4), // Punchy green
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FollowersPage(
+                                    userId: _userModel!.id,
+                                    isFollowers: false,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: _buildStatCard(
+                              title: 'Following',
+                              value: _userModel?.followingCount.toString() ?? '0',
+                              color: const Color(0xFF4ECDC4), // Punchy green
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildStatCard(
-                            title: 'Followers',
-                            value: _userModel?.followerCount.toString() ?? '0',
-                            color: const Color(0xFFFF6B6B), // Coral
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FollowersPage(
+                                    userId: _userModel!.id,
+                                    isFollowers: true,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: _buildStatCard(
+                              title: 'Followers',
+                              value: _userModel?.followerCount.toString() ?? '0',
+                              color: const Color(0xFFFF6B6B), // Coral
+                            ),
                           ),
                         ),
                       ],

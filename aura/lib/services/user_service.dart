@@ -113,4 +113,111 @@ class UserService {
       rethrow;
     }
   }
+
+  // Follow a user
+  static Future<void> followUser(String targetUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("No user is logged in");
+
+    final batch = _firestore.batch();
+    
+    // Add to current user's following list
+    batch.update(
+      _usersCollection.doc(currentUser.uid),
+      {
+        'following': FieldValue.arrayUnion([targetUserId]),
+        'followingCount': FieldValue.increment(1),
+      },
+    );
+    
+    // Add to target user's followers list
+    batch.update(
+      _usersCollection.doc(targetUserId),
+      {
+        'followers': FieldValue.arrayUnion([currentUser.uid]),
+        'followerCount': FieldValue.increment(1),
+      },
+    );
+    
+    await batch.commit();
+  }
+
+  // Unfollow a user
+  static Future<void> unfollowUser(String targetUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("No user is logged in");
+
+    final batch = _firestore.batch();
+    
+    // Remove from current user's following list
+    batch.update(
+      _usersCollection.doc(currentUser.uid),
+      {
+        'following': FieldValue.arrayRemove([targetUserId]),
+        'followingCount': FieldValue.increment(-1),
+      },
+    );
+    
+    // Remove from target user's followers list
+    batch.update(
+      _usersCollection.doc(targetUserId),
+      {
+        'followers': FieldValue.arrayRemove([currentUser.uid]),
+        'followerCount': FieldValue.increment(-1),
+      },
+    );
+    
+    await batch.commit();
+  }
+
+  // Check if current user is following a target user
+  static Future<bool> isFollowing(String targetUserId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
+
+    final userDoc = await _usersCollection.doc(currentUser.uid).get();
+    if (!userDoc.exists) return false;
+
+    final userData = userDoc.data() as Map<String, dynamic>;
+    final following = List<String>.from(userData['following'] ?? []);
+    return following.contains(targetUserId);
+  }
+
+  // Get list of followers for a user
+  static Stream<List<UserModel>> getFollowers(String userId) {
+    return _usersCollection.doc(userId).snapshots().asyncMap((doc) async {
+      if (!doc.exists) return [];
+      
+      final userData = doc.data() as Map<String, dynamic>;
+      final followers = List<String>.from(userData['followers'] ?? []);
+      
+      final followerDocs = await Future.wait(
+        followers.map((id) => _usersCollection.doc(id).get())
+      );
+      
+      return followerDocs
+          .where((doc) => doc.exists)
+          .map((doc) => UserModel.fromFirestore(doc))
+          .toList();
+    });
+  }
+
+  // Get list of users being followed
+  static Stream<List<UserModel>> getFollowing(String userId) {
+    return _usersCollection.doc(userId).snapshots().asyncMap((doc) async {
+      if (!doc.exists) return [];
+      
+      final userData = doc.data() as Map<String, dynamic>;
+      final following = List<String>.from(userData['following'] ?? []);
+      
+      final followingDocs = await Future.wait(
+        following.map((id) => _usersCollection.doc(id).get())
+      );
+      
+      return followingDocs
+          .where((doc) => doc.exists)
+          .map((doc) => UserModel.fromFirestore(doc))
+          .toList();
+    });
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:aura/pages/search_page.dart';
 
 class MyDrawer extends StatelessWidget {
   const MyDrawer({super.key});
@@ -55,6 +56,23 @@ class MyDrawer extends StatelessWidget {
             color: const Color(0xFF8A4AF0), // Muted purple
             onTap: () {
               Navigator.pop(context);
+            },
+          ),
+
+          // Search Item
+          _buildDrawerItem(
+            context: context,
+            icon: Icons.search,
+            title: "Search Users",
+            color: const Color(0xFF4ECDC4), // Punchy green
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SearchPage(),
+                ),
+              );
             },
           ),
 

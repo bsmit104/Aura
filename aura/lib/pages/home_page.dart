@@ -235,34 +235,101 @@ class _HomePageState extends State<HomePage> {
           controller: _scrollController,
           child: Column(
             children: [
-              StreamBuilder<QuerySnapshot>(
+              StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
-                    .collection('posts')
-                    .orderBy('timestamp', descending: true)
+                    .collection('users')
+                    .doc(FirebaseAuth.instance.currentUser?.uid)
                     .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                builder: (context, userSnapshot) {
+                  if (userSnapshot.hasError) {
+                    return Center(child: Text('Error: ${userSnapshot.error}'));
                   }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (userSnapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final posts = snapshot.data!.docs
-                      .map((doc) => Post.fromFirestore(doc))
-                      .toList();
+                  final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+                  final following = List<String>.from(userData?['following'] ?? []);
+                  final userId = FirebaseAuth.instance.currentUser?.uid;
+                  if (userId != null && !following.contains(userId)) {
+                    following.add(userId);
+                  }
 
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: posts.length,
-                    itemBuilder: (context, index) {
-                      final post = posts[index];
-                      return PostWidget(
-                        post: post,
-                        onReact: _reactToPost,
-                        onComment: _showCommentDialog,
+                  if (following.isEmpty) {
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.people_outline,
+                            size: 64,
+                            color: Color(0xFF4A5EBD),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No Posts Yet',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Follow some users to see their posts here!',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('posts')
+                        .where('userId', whereIn: following)
+                        .orderBy('timestamp', descending: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
+
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final posts = snapshot.data!.docs
+                          .map((doc) => Post.fromFirestore(doc))
+                          .toList();
+
+                      if (posts.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'No posts from people you follow yet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          final post = posts[index];
+                          return PostWidget(
+                            post: post,
+                            onReact: _reactToPost,
+                            onComment: _showCommentDialog,
+                          );
+                        },
                       );
                     },
                   );
