@@ -1,14 +1,56 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:aura/models/user.dart';
+import 'package:aura/services/user_service.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  bool _isLoading = true;
+  UserModel? _userModel;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+  
+  Future<void> _loadUserData() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+    
+    try {
+      // Use UserService to ensure user document exists
+      _userModel = await UserService.ensureUserDocument();
+      
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final User? currentUser = FirebaseAuth.instance.currentUser;
-    final String displayName = currentUser?.displayName ?? 'User';
-    final String email = currentUser?.email ?? 'No email';
+    // Prioritize Firestore username, then Auth displayName, then email-based fallback
+    final String displayName = _userModel?.username ?? 
+        currentUser?.displayName ?? 
+        (currentUser?.email?.split('@')[0] ?? 'Guest');
+    final String email = _userModel?.email ?? currentUser?.email ?? 'No email';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F1E9), // Eggshell background
@@ -24,114 +66,118 @@ class ProfilePage extends StatelessWidget {
         ),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Profile Header
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4A5EBD), // Deep blue
-                    border: Border.all(color: Colors.black, width: 4),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black,
-                        offset: Offset(6, 6),
-                        blurRadius: 0,
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4ECDC4)))
+          : SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Profile Header
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4A5EBD), // Deep blue
+                          border: Border.all(color: Colors.black, width: 4),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(6, 6),
+                              blurRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 80,
+                          color: Color(0xFFFF6B6B), // Coral
+                        ),
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 80,
-                    color: Color(0xFFFF6B6B), // Coral
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              // User Info Card
-              _buildInfoCard(
-                title: 'User Information',
-                children: [
-                  _buildInfoRow('Username', displayName),
-                  _buildInfoRow('Email', email),
-                ],
-              ),
-              const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // User Info Card
+                    _buildInfoCard(
+                      title: 'User Information',
+                      children: [
+                        _buildInfoRow('Username', displayName),
+                        _buildInfoRow('Email', email),
+                        if (_userModel?.bio != null)
+                          _buildInfoRow('Bio', _userModel!.bio!),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
-              // Stats Section
-              const Text(
-                'Your Stats',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Posts',
-                      value: '12',
-                      color: const Color(0xFF8A4AF0), // Muted purple
+                    // Stats Section
+                    const Text(
+                      'Your Stats',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Following',
-                      value: '45',
-                      color: const Color(0xFF4ECDC4), // Punchy green
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            title: 'Posts',
+                            value: _userModel?.postCount.toString() ?? '0',
+                            color: const Color(0xFF8A4AF0), // Muted purple
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildStatCard(
+                            title: 'Following',
+                            value: _userModel?.followingCount.toString() ?? '0',
+                            color: const Color(0xFF4ECDC4), // Punchy green
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildStatCard(
+                            title: 'Followers',
+                            value: _userModel?.followerCount.toString() ?? '0',
+                            color: const Color(0xFFFF6B6B), // Coral
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Followers',
-                      value: '89',
-                      color: const Color(0xFFFF6B6B), // Coral
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-              // Settings Section
-              const Text(
-                'Settings',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                    // Settings Section
+                    const Text(
+                      'Settings',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildSettingsButton(
+                      icon: Icons.edit,
+                      title: 'Edit Profile',
+                      onTap: () {},
+                    ),
+                    _buildSettingsButton(
+                      icon: Icons.notifications,
+                      title: 'Notifications',
+                      onTap: () {},
+                    ),
+                    _buildSettingsButton(
+                      icon: Icons.security,
+                      title: 'Privacy',
+                      onTap: () {},
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              _buildSettingsButton(
-                icon: Icons.edit,
-                title: 'Edit Profile',
-                onTap: () {},
-              ),
-              _buildSettingsButton(
-                icon: Icons.notifications,
-                title: 'Notifications',
-                onTap: () {},
-              ),
-              _buildSettingsButton(
-                icon: Icons.security,
-                title: 'Privacy',
-                onTap: () {},
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 

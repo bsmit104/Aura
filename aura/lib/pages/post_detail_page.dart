@@ -31,11 +31,24 @@ class _PostDetailPageState extends State<PostDetailPage> {
     if (currentUser == null) return;
 
     try {
+      // Get user data from Firestore to ensure we have the correct username
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      if (!userDoc.exists) {
+        throw Exception("User document not found");
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final username = userData['username'] as String;
+
       final commentRef = _commentsCollection.doc();
       final comment = Comment(
         id: commentRef.id,
         userId: currentUser.uid,
-        username: currentUser.displayName ?? 'Anonymous',
+        username: username, // Use username from Firestore
         content: content,
         timestamp: DateTime.now(),
         parentId: null,

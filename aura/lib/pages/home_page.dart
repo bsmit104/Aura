@@ -17,6 +17,51 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final ScrollController _scrollController = ScrollController();
 
+  void _showCreatePostSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8F1E9),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black,
+                offset: Offset(0, -4),
+                blurRadius: 0,
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: const CreatePost(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _reactToPost(String postId, bool isSparkle) async {
     try {
       final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -158,6 +203,28 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
       ),
       drawer: const MyDrawer(),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF6B6B),
+          border: Border.all(color: Colors.black, width: 4),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black,
+              offset: Offset(4, 4),
+              blurRadius: 0,
+            ),
+          ],
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          onPressed: _showCreatePostSheet,
+          icon: const Icon(
+            Icons.add,
+            color: Colors.white,
+            size: 32,
+          ),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           if (mounted) {
@@ -168,7 +235,6 @@ class _HomePageState extends State<HomePage> {
           controller: _scrollController,
           child: Column(
             children: [
-              const CreatePost(),
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('posts')

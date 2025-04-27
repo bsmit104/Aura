@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:giphy_picker/giphy_picker.dart';
 import '../helper/helper_functions.dart';
+import '../services/user_service.dart';
 import 'gif_player.dart';
 
 class CreatePost extends StatefulWidget {
@@ -120,9 +121,27 @@ class _CreatePostState extends State<CreatePost> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      await FirebaseFirestore.instance.collection('posts').add({
+      // Get user data from Firestore to ensure we have the correct username
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (!userDoc.exists) {
+        throw Exception("User document not found");
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final username = userData['username'] as String;
+
+      // Start a batch write
+      final batch = FirebaseFirestore.instance.batch();
+      
+      // Create the post document
+      final postRef = FirebaseFirestore.instance.collection('posts').doc();
+      batch.set(postRef, {
         'userId': user.uid,
-        'username': user.displayName ?? 'Anonymous',
+        'username': username, // Use username from Firestore
         'content': _contentController.text,
         'gifUrl': _gifUrl,
         'timestamp': Timestamp.now(),
@@ -131,6 +150,12 @@ class _CreatePostState extends State<CreatePost> {
         'comments': [],
         'colorValue': _selectedColor != Colors.white ? _selectedColor.toARGB32() : null,
       });
+      
+      // Update the user's post count
+      await UserService.incrementPostCount(user.uid);
+      
+      // Commit the batch
+      await batch.commit();
 
       _contentController.clear();
       if (mounted) {
